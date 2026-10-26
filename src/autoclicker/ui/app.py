@@ -1,0 +1,15 @@
+from __future__ import annotations
+
+import sys
+
+import customtkinter as ctk
+
+from .main_window import MainWindow
+
+
+def run_app(argv: list[str]) -> int:
+    ctk.set_appearance_mode("dark")
+    ctk.set_default_color_theme("blue")
+    app = MainWindow()
+    app.mainloop()
+    return 0
