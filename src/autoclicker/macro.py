@@ -146,11 +146,17 @@ class MacroPlayer:
             self.mouse.click(btn, 1)
         elif ev.kind == "press":
             btn = _btn(d.get("button", "Button.left"))
+            if "x" in d and "y" in d:
+                self.mouse.position = (int(d["x"]), int(d["y"]))
             self.mouse.press(btn)
         elif ev.kind == "release":
             btn = _btn(d.get("button", "Button.left"))
+            if "x" in d and "y" in d:
+                self.mouse.position = (int(d["x"]), int(d["y"]))
             self.mouse.release(btn)
         elif ev.kind == "scroll":
+            if "x" in d and "y" in d:
+                self.mouse.position = (int(d["x"]), int(d["y"]))
             self.mouse.scroll(int(d.get("dx", 0)), int(d.get("dy", 0)))
         elif ev.kind == "key":
             pass  # keyboard replay omitted in v0.1 for safety

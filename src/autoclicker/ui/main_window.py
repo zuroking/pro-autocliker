@@ -336,6 +336,7 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
             try:
                 self._current_macro = Macro(name=name, events=events, speed=speed, record_keyboard=bool(self.record_kb_var.get()))
             except ValueError as exc:
+                self.macro_status.configure(text="macro invalid")
                 self._status(f"invalid macro speed: {exc}")
                 return
             self.macro_status.configure(text=f"recorded {len(events)} events")
@@ -344,6 +345,9 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
     def _play_macro(self) -> None:
         if self._current_macro is None:
             self._status("no macro loaded")
+            return
+        if self.macro_player is not None and self.macro_player.is_running:
+            self._status("macro already playing")
             return
         self.macro_player = MacroPlayer(self._current_macro, self.mouse, self.kb_controller)
         self.macro_player.start(on_status=self._status)
@@ -362,7 +366,9 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         d = default_data_dir() / "macros.json"
         data: list[dict[str, Any]] = []
         try:
-            data = json.loads(d.read_text(encoding="utf-8")) if d.exists() else []
+            loaded = json.loads(d.read_text(encoding="utf-8")) if d.exists() else []
+            if isinstance(loaded, list):
+                data = [m for m in loaded if isinstance(m, dict)]
         except Exception:
             data = []
         # upsert by name
