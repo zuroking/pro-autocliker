@@ -266,6 +266,10 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
             self.recording = False
         self.script_runner.stop()
         self.multiclicker.stop_all()
+        try:
+            self.scheduler.stop()
+        except Exception:
+            pass
         self._status("EMERGENCY STOP")
 
     def _save_profile(self) -> None:
@@ -450,6 +454,10 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
 
     def destroy(self) -> None:
         try:
+            self.scheduler.stop()
+        except Exception:
+            pass
+        try:
             self._stop_engine()
         except Exception:
             pass
@@ -470,10 +478,6 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
             pass
         try:
             self.multiclicker.stop_all()
-        except Exception:
-            pass
-        try:
-            self.scheduler.stop()
         except Exception:
             pass
         try:

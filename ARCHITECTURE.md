@@ -137,7 +137,7 @@ thread explosion.
 ## 11. Persistence
 
 Base dir: `%APPDATA%/pro-autocliker/` (Windows) or `~/.config/pro-autocliker`.
-Files: `profiles.json`, `macros.json`, `schedules.json`. (No scripts/*.txt or settings.json in v0.1; no scripts/ dir created.)
+Files: `profiles.json`, `macros.json`, `schedules.json`. (No scripts/*.txt or settings.json in v0.1; no scripts/ dir created by v0.1, though older runs may have left one.)
 
 ## 12. UI
 
@@ -168,4 +168,4 @@ configurable from the UI in v0.1 (defaults F6/F7/F12).
 ## 16. Versioning
 
 Semantic. v0.1.0 = engine + UI + hotkeys + profiles + macros + scheduler +
-scripts + multi-clicker (two commits, 2026-10-26). No remote yet.
+scripts + multi-clicker (four commits, 2026-10-26). No remote yet.

@@ -67,7 +67,8 @@ class Scheduler:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=2.0)
-        self._thread = None
+            if not self._thread.is_alive():
+                self._thread = None
 
     def _run(self) -> None:
         while not self._stop.is_set():
