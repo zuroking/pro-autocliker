@@ -66,7 +66,7 @@ class MacroRecorder:
             self._events.append(
                 MacroEvent(
                     t_ms=self._t(),
-                    kind="click" if pressed else "release",
+                    kind="press" if pressed else "release",
                     data={"x": x, "y": y, "button": str(button)},
                 )
             )

@@ -70,11 +70,11 @@ class ClickConfig(BaseModel):
     def _jitter_le_interval(cls, v, info): ...    # v <= info.data["interval_ms"] // 2
 ```
 
-`MouseController` is a `Protocol` (move, click, press, release, position) so the
+`MouseController` is a `Protocol` (position, click, press, release) so the
 engine is testable with a fake. pynput's `Controller` satisfies it.
 
 `Profile` = name + ClickConfig + hotkey bindings.
-`Macro` = list of events (move/click/scroll/key) with timestamps (relative).
+`Macro` = list of events (move/press/release/scroll/key) with timestamps (relative).
 `Schedule` = one-shot or daily datetime + profile name + repeat (no cron).
 `Script` = list of DSL statements.
 
@@ -86,7 +86,7 @@ engine is testable with a fake. pynput's `Controller` satisfies it.
   - fixed mode: `mouse.position = (x,y)` then click; restore cursor if configured.
   - jitter: `stop_event.wait(interval + uniform(-jitter, jitter))` (wakes on stop).
   - hold: press, wait(hold_duration), release.
-  - double: two clicks with ~50 ms gap.
+  - double: `mouse.click(btn, 2)` (pynput's double-click).
 - Never blocks the UI thread. `on_status(str)` is called from worker thread;
   UI wraps it in `root.after(0, ...)`.
 - Use `stop_event.wait(timeout)` instead of `time.sleep` so stop is responsive.
@@ -137,7 +137,7 @@ thread explosion.
 ## 11. Persistence
 
 Base dir: `%APPDATA%/pro-autocliker/` (Windows) or `~/.config/pro-autocliker`.
-Files: `profiles.json`, `macros.json`, `schedules.json`. (No scripts/*.txt or settings.json in v0.1.)
+Files: `profiles.json`, `macros.json`, `schedules.json`. (No scripts/*.txt or settings.json in v0.1; no scripts/ dir created.)
 
 ## 12. UI
 
@@ -168,4 +168,4 @@ configurable from the UI in v0.1 (defaults F6/F7/F12).
 ## 16. Versioning
 
 Semantic. v0.1.0 = engine + UI + hotkeys + profiles + macros + scheduler +
-scripts + multi-clicker (single snapshot commit, 2026-10-26). No remote yet.
+scripts + multi-clicker (two commits, 2026-10-26). No remote yet.

@@ -143,8 +143,7 @@ class ScriptRunner:
         self.stop_event.set()
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=2.0)
-            if not self._thread.is_alive():
-                self._thread = None
+        self._thread = None
 
     def _exec_block(self, stmts: list[Stmt]) -> None:
         for st in stmts:

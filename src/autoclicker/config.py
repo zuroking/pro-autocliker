@@ -110,7 +110,6 @@ def default_data_dir() -> Path:
 def ensure_data_dir() -> Path:
     d = default_data_dir()
     d.mkdir(parents=True, exist_ok=True)
-    (d / "scripts").mkdir(parents=True, exist_ok=True)
     return d
 
 

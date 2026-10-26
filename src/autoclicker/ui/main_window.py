@@ -209,9 +209,9 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         row = ctk.CTkFrame(frm)
         row.pack(fill="x", pady=4)
         ctk.CTkButton(row, text="Add stream (current config)", command=self._add_stream).pack(side="left", padx=4)
-        ctk.CTkButton(row, text="Start all", command=self.multiclicker.start_all).pack(side="left", padx=4)
-        ctk.CTkButton(row, text="Stop all", command=self.multiclicker.stop_all).pack(side="left", padx=4)
-        ctk.CTkButton(row, text="Clear", command=self.multiclicker.clear).pack(side="left", padx=4)
+        ctk.CTkButton(row, text="Start all", command=self._multi_start_all).pack(side="left", padx=4)
+        ctk.CTkButton(row, text="Stop all", command=self._multi_stop_all).pack(side="left", padx=4)
+        ctk.CTkButton(row, text="Clear", command=self._multi_clear).pack(side="left", padx=4)
         self.multi_info = ctk.CTkLabel(frm, text="streams: 0")
         self.multi_info.pack(anchor="w", pady=4)
         self._update_multi_info()
@@ -333,7 +333,11 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
                 speed = float(self.macro_speed_entry.get() or 1.0)
             except ValueError:
                 speed = 1.0
-            self._current_macro = Macro(name=name, events=events, speed=speed, record_keyboard=bool(self.record_kb_var.get()))
+            try:
+                self._current_macro = Macro(name=name, events=events, speed=speed, record_keyboard=bool(self.record_kb_var.get()))
+            except ValueError as exc:
+                self._status(f"invalid macro speed: {exc}")
+                return
             self.macro_status.configure(text=f"recorded {len(events)} events")
             self._status("macro recording stopped")
 
@@ -423,12 +427,30 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         self.multiclicker.add(cfg)
         self._update_multi_info()
 
+    def _multi_start_all(self) -> None:
+        self.multiclicker.start_all()
+        self._update_multi_info()
+
+    def _multi_stop_all(self) -> None:
+        self.multiclicker.stop_all()
+        self._update_multi_info()
+
+    def _multi_clear(self) -> None:
+        self.multiclicker.clear()
+        self._update_multi_info()
+
     def _update_multi_info(self) -> None:
         self.multi_info.configure(text=f"streams: {len(self.multiclicker.engines)}")
 
     def destroy(self) -> None:
         try:
             self._stop_engine()
+        except Exception:
+            pass
+        try:
+            if self.recording and self.macro_recorder is not None:
+                self.macro_recorder.stop()
+                self.recording = False
         except Exception:
             pass
         try:
