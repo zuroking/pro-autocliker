@@ -18,7 +18,7 @@ def test_engine_fixed_count() -> None:
         time.sleep(0.05)
     assert eng.clicks_done == 5
     assert len(mouse.clicks) == 5
-    assert mouse.position == (10, 20) or True
+    assert mouse.position == (10, 20)
 
 
 def test_engine_stop_infinite() -> None:

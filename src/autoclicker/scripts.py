@@ -124,20 +124,27 @@ class ScriptRunner:
         self.mouse = mouse
         self.on_status = on_status or (lambda _m: None)
         self.stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
 
     def run(self, source: str) -> None:
         import threading
 
+        self.stop()
         self.stop_event = threading.Event()
         try:
             stmts = parse(source)
         except ScriptError as e:
             self.on_status(str(e))
             return
-        threading.Thread(target=self._exec_block, args=(stmts,), name="script-runner", daemon=True).start()
+        self._thread = threading.Thread(target=self._exec_block, args=(stmts,), name="script-runner", daemon=True)
+        self._thread.start()
 
     def stop(self) -> None:
         self.stop_event.set()
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
+            if not self._thread.is_alive():
+                self._thread = None
 
     def _exec_block(self, stmts: list[Stmt]) -> None:
         for st in stmts:
@@ -167,15 +174,40 @@ class ScriptRunner:
             return
         if st.kind in ("click", "doubleclick", "hold"):
             btn_name = "left"
-            pos = None
-            # parse: [button] [at x,y]
             args = list(st.args)
             if args and args[0].lower() in BUTTONS:
                 btn_name = args.pop(0).lower()
-            if args and args[0].lower() == "at":
-                args.pop(0)
-                pos = _parse_xy(" ".join(args))
+            # now args may contain: [duration] ['at' x,y [duration]]
             btn = BUTTONS[btn_name]
+            pos: Optional[tuple[int, int]] = None
+            dur = 50
+            at_idx = next((i for i, a in enumerate(args) if a.lower() == "at"), None)
+            if at_idx is not None:
+                before = args[:at_idx]
+                after = args[at_idx + 1:]
+                if before:
+                    try:
+                        dur = int(before[-1])
+                    except ValueError:
+                        pass
+                # after may be "x,y" or "x,y duration" or "x y duration"
+                pos_str = " ".join(after)
+                try:
+                    pos = _parse_xy(pos_str)
+                except ValueError:
+                    toks = pos_str.split()
+                    if len(toks) >= 2:
+                        try:
+                            dur = int(toks[-1])
+                            pos = _parse_xy(" ".join(toks[:-1]))
+                        except ValueError:
+                            raise
+            else:
+                if args:
+                    try:
+                        dur = int(args[0])
+                    except ValueError:
+                        pass
             if pos is not None:
                 self.mouse.position = pos
             if st.kind == "click":
@@ -183,14 +215,6 @@ class ScriptRunner:
             elif st.kind == "doubleclick":
                 self.mouse.click(btn, 2)
             elif st.kind == "hold":
-                dur = 50
-                if args:
-                    # last numeric could be duration
-                    try:
-                        dur = int(args[-1])
-                        args = args[:-1]
-                    except ValueError:
-                        pass
                 self.mouse.press(btn)
                 self.stop_event.wait(dur / 1000.0)
                 self.mouse.release(btn)

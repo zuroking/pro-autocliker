@@ -43,13 +43,13 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         self.recording = False
         self.script_runner = ScriptRunner(self.mouse, on_status=self._status)
         self.multiclicker = MultiClicker(on_status=self._status)
-        self.scheduler = Scheduler(on_trigger=self._on_schedule_trigger, base_dir=default_data_dir())
+        self.scheduler = Scheduler(on_trigger=self._on_schedule_trigger, base_dir=default_data_dir(), on_error=lambda e: self._status(f"scheduler error: {e}"))
         self.scheduler.start()
 
         self.hotkeys = HotkeyManager(HotkeyBindings())
-        self.hotkeys.register("start_stop", self._toggle_engine)
-        self.hotkeys.register("record_macro", self._toggle_record_macro)
-        self.hotkeys.register("emergency_stop", self._emergency_stop)
+        self.hotkeys.register("start_stop", lambda: self.after(0, self._toggle_engine))
+        self.hotkeys.register("record_macro", lambda: self.after(0, self._toggle_record_macro))
+        self.hotkeys.register("emergency_stop", lambda: self.after(0, self._emergency_stop))
         try:
             self.hotkeys.start()
         except Exception as exc:
@@ -239,7 +239,11 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
     def _start_engine(self) -> None:
         if self.engine is not None and self.engine.is_running:
             return
-        cfg = self._read_config()
+        try:
+            cfg = self._read_config()
+        except ValueError as exc:
+            self._status(f"invalid config: {exc}")
+            return
         self.engine = ClickEngine(cfg, self.mouse, on_status=self._status)
         self.engine.start()
 
@@ -257,13 +261,20 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         self._stop_engine()
         if self.macro_player is not None:
             self.macro_player.stop()
+        if self.recording and self.macro_recorder is not None:
+            self.macro_recorder.stop()
+            self.recording = False
         self.script_runner.stop()
         self.multiclicker.stop_all()
         self._status("EMERGENCY STOP")
 
     def _save_profile(self) -> None:
         name = self.profile_name_entry.get().strip() or "default"
-        cfg = self._read_config()
+        try:
+            cfg = self._read_config()
+        except ValueError as exc:
+            self._status(f"invalid config: {exc}")
+            return
         profile = Profile(name=name, config=cfg)
         self.profile_store.upsert(profile)
         self._refresh_profile_list()
@@ -379,11 +390,15 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
             self.sched_list.insert("end", f"{s.name}: {s.profile_name} @ {s.run_at} ({s.repeat}) enabled={s.enabled}\n")
 
     def _on_schedule_trigger(self, sched: Schedule) -> None:
+        self.after(0, lambda: self._run_scheduled(sched))
+
+    def _run_scheduled(self, sched: Schedule) -> None:
         profile = self.profile_store.get(sched.profile_name)
         if profile is None:
             self._status(f"schedule profile missing: {sched.profile_name}")
             return
-        # apply profile config to form? just run engine with it
+        if self.engine is not None and self.engine.is_running:
+            self.engine.stop()
         cfg = profile.config
         eng = ClickEngine(cfg, self.mouse, on_status=self._status)
         eng.start()
@@ -400,7 +415,11 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
 
     # ---------- multi ----------
     def _add_stream(self) -> None:
-        cfg = self._read_config()
+        try:
+            cfg = self._read_config()
+        except ValueError as exc:
+            self._status(f"invalid config: {exc}")
+            return
         self.multiclicker.add(cfg)
         self._update_multi_info()
 
@@ -408,6 +427,23 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         self.multi_info.configure(text=f"streams: {len(self.multiclicker.engines)}")
 
     def destroy(self) -> None:
+        try:
+            self._stop_engine()
+        except Exception:
+            pass
+        try:
+            if self.macro_player is not None:
+                self.macro_player.stop()
+        except Exception:
+            pass
+        try:
+            self.script_runner.stop()
+        except Exception:
+            pass
+        try:
+            self.multiclicker.stop_all()
+        except Exception:
+            pass
         try:
             self.scheduler.stop()
         except Exception:

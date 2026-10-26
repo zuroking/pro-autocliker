@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — pro-autocliker
 
-**as of 2026-10-26 · v1.0 draft · CPU-only desktop app (Windows, Python 3.12+)**
+**as of 2026-10-26 · v0.1.0 · CPU-only desktop app (Windows, Python 3.12+)**
 
 ## 1. Goal
 
@@ -19,7 +19,7 @@ network, no telemetry.
 | Input control | `pynput` 1.8.2 | Cross-platform mouse/keyboard, global hotkeys |
 | Config/validation | `pydantic` v2 | Typed, validated profiles |
 | Persistence | JSON files under `%APPDATA%/pro-autocliker` | Human-readable, diffable |
-| Concurrency | `threading` + `queue` | Simple, sufficient for click streams |
+| Concurrency | `threading` | Simple, sufficient for click streams |
 | Packaging | `pyinstaller` (optional, later) | Single exe |
 
 No `PyAutoGUI` for the click path (pynput is lower-level and more reliable
@@ -34,19 +34,14 @@ src/autoclicker/
   config.py             # Pydantic models: ClickConfig, Profile, Macro, Schedule, Script
   engine.py             # ClickEngine (one stream)
   multiclicker.py       # MultiClicker orchestrates N engines
-  hotkeys.py            # GlobalHotkeyManager (pynput keyboard listener)
+  hotkeys.py            # HotkeyManager (pynput keyboard listener)
   macro.py              # MacroRecorder / MacroPlayer
   scheduler.py          # Scheduler (time-based triggers)
   scripts.py            # tiny DSL interpreter for click scripts
   profiles.py           # ProfileStore (load/save/list)
   ui/
     app.py              # CTk root + wiring
-    main_window.py      # main control panel
-    profile_panel.py
-    macro_panel.py
-    scheduler_panel.py
-    script_editor.py
-    multi_panel.py
+    main_window.py      # single monolithic window with tabview
 tests/
   test_config.py
   test_engine.py
@@ -80,7 +75,7 @@ engine is testable with a fake. pynput's `Controller` satisfies it.
 
 `Profile` = name + ClickConfig + hotkey bindings.
 `Macro` = list of events (move/click/scroll/key) with timestamps (relative).
-`Schedule` = cron-like or one-shot datetime + profile name + repeat.
+`Schedule` = one-shot or daily datetime + profile name + repeat (no cron).
 `Script` = list of DSL statements.
 
 ## 5. Engine contract
@@ -106,13 +101,14 @@ Global hotkeys via `pynput.keyboard.GlobalHotKeys`. Default:
 - F7 = record macro toggle
 - F12 = emergency stop (kills all engines + macros). Esc avoided: it would
   hijack text input globally. Configurable, with on-screen warning.
-Configurable per profile.
+Configurable per profile (data model present; no UI in v0.1).
 
 ## 7. Macro recording
 
-`MacroRecorder` captures `mouse` + `keyboard` events with timestamps via
-pynput listeners. Stored as list of `{t_ms, kind, ...}`. Player replays with
-original timing scaled by speed factor. Recording stops on hotkey.
+`MacroRecorder` captures mouse events (keyboard capture is opt-in via
+`record_keyboard`, off by default for privacy). Player replays mouse events
+with original timing scaled by speed factor; keyboard events are not replayed
+in v0.1 (safety). Recording stops on hotkey.
 
 ## 8. Scheduler
 
@@ -141,12 +137,14 @@ thread explosion.
 ## 11. Persistence
 
 Base dir: `%APPDATA%/pro-autocliker/` (Windows) or `~/.config/pro-autocliker`.
-Files: `profiles.json`, `macros.json`, `schedules.json`, `scripts/*.txt`, `settings.json`.
+Files: `profiles.json`, `macros.json`, `schedules.json`. (No scripts/*.txt or settings.json in v0.1.)
 
 ## 12. UI
 
 CustomTkinter. Main window: config form + start/stop + status + hotkey hints.
-Tabs: Profiles, Macros, Scheduler, Scripts, Multi. Emergency stop always visible (red, large).
+Tabs: Clicker, Profiles, Macros, Scheduler, Scripts, Multi. Emergency stop
+button lives in the Clicker tab (not globally visible). Hotkeys are not
+configurable from the UI in v0.1 (defaults F6/F7/F12).
 
 ## 13. Testing strategy
 
@@ -169,5 +167,5 @@ Tabs: Profiles, Macros, Scheduler, Scripts, Multi. Emergency stop always visible
 
 ## 16. Versioning
 
-Semantic. v0.1 = engine + basic UI. v0.2 = hotkeys + profiles. v0.3 = macros.
-v0.4 = scheduler + scripts. v0.5 = multi-clicker. v1.0 = polish + packaging.
+Semantic. v0.1.0 = engine + UI + hotkeys + profiles + macros + scheduler +
+scripts + multi-clicker (single snapshot commit, 2026-10-26). No remote yet.

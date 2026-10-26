@@ -112,7 +112,8 @@ class MacroPlayer:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=2.0)
-        self._thread = None
+            if not self._thread.is_alive():
+                self._thread = None
 
     def _run(self, cb: Callable[[str], None]) -> None:
         try:
@@ -128,7 +129,8 @@ class MacroPlayer:
                         break
                 self._apply(ev)
                 prev_t = ev.t_ms
-            cb("macro finished")
+            if not self._stop.is_set():
+                cb("macro finished")
         except Exception as exc:  # pragma: no cover
             cb(f"macro error: {exc}")
         finally:

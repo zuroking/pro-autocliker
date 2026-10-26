@@ -28,4 +28,4 @@ def test_macro_player_runs() -> None:
     import time
     time.sleep(1.0)
     player.stop()
-    assert mouse.position == (7, 8) or True
+    assert mouse.position == (7, 8)

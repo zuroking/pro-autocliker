@@ -35,6 +35,6 @@ def test_runner_executes() -> None:
     runner.run(src)
     # allow thread to finish
     time.sleep(0.5)
-    assert mouse.position == (7, 8) or mouse.position == (5, 6)
+    assert mouse.position == (7, 8)
     # at least one click happened
     assert len(mouse.clicks) >= 1

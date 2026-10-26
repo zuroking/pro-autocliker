@@ -15,12 +15,14 @@ class Scheduler:
         self,
         on_trigger: Callable[[Schedule], None],
         base_dir: Optional[Path] = None,
+        on_error: Optional[Callable[[Exception], None]] = None,
     ) -> None:
         self.on_trigger = on_trigger
         self.base_dir = base_dir
+        self.on_error = on_error
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     @property
     def path(self) -> Path:
@@ -29,26 +31,30 @@ class Scheduler:
         return root / "schedules.json"
 
     def load(self) -> list[Schedule]:
-        data = read_json(self.path, default=[])
-        out: list[Schedule] = []
-        for item in data if isinstance(data, list) else []:
-            try:
-                out.append(Schedule.model_validate(item))
-            except Exception:
-                continue
-        return out
+        with self._lock:
+            data = read_json(self.path, default=[])
+            out: list[Schedule] = []
+            for item in data if isinstance(data, list) else []:
+                try:
+                    out.append(Schedule.model_validate(item))
+                except Exception:
+                    continue
+            return out
 
     def save(self, schedules: list[Schedule]) -> None:
-        atomic_write_json(self.path, [s.model_dump(mode="json") for s in schedules])
+        with self._lock:
+            atomic_write_json(self.path, [s.model_dump(mode="json") for s in schedules])
 
     def add(self, schedule: Schedule) -> None:
-        schedules = self.load()
-        schedules.append(schedule)
-        self.save(schedules)
+        with self._lock:
+            schedules = self.load()
+            schedules.append(schedule)
+            self.save(schedules)
 
     def remove(self, name: str) -> None:
-        schedules = [s for s in self.load() if s.name != name]
-        self.save(schedules)
+        with self._lock:
+            schedules = [s for s in self.load() if s.name != name]
+            self.save(schedules)
 
     def start(self) -> None:
         if self._thread is not None and self._thread.is_alive():
@@ -87,6 +93,10 @@ class Scheduler:
             for s in due:
                 try:
                     self.on_trigger(s)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    if self.on_error is not None:
+                        try:
+                            self.on_error(exc)
+                        except Exception:
+                            pass
             self._stop.wait(1.0)

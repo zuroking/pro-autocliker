@@ -55,7 +55,8 @@ class ClickEngine:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=2.0)
-        self._thread = None
+            if not self._thread.is_alive():
+                self._thread = None
         self._emit("stopped")
 
     def _emit(self, msg: str) -> None:
@@ -106,6 +107,8 @@ class ClickEngine:
                 else:
                     self._do_click(btn)
 
+                if self._stop.is_set():
+                    break
                 self._clicks_done += 1
                 self._emit(f"click {self._clicks_done}")
 
